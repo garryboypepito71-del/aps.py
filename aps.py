@@ -2,29 +2,43 @@ import os
 import time
 from datetime import datetime
 import streamlit as st
+import smtplib
+from email.message import EmailMessage
 
 # ═════════════════ CONFIGURATION ═════════════════
-APP_VERSION = "Ailyn Construction Management v30000 — GREEN EMERALD CORE"
+APP_VERSION = "AILY OS v30000 — GREEN EMERALD CORE"
+RECEIVER_EMAIL = "garryboypepito2004@gmail.com"
 RECEIVER_AILYN = "ailyn_peps0678@yahoo.com"
+SENDER_EMAIL = "garryboypepito71@gmail.com"
+SENDER_PASSWORD = "fhyv cimp gync wjmj"
 
 # ═════════════════ PAGE CONFIG ═════════════════
 st.set_page_config(
-    page_title="Ailyn Construction Management v30000",
+    page_title="Ailyn Construction Management",
     page_icon="🧊",
     layout="wide",
 )
 
 # ═════════════════ SESSION STATE ═════════════════
 if "records" not in st.session_state:
-    st.session_state.records = []
+    st.session_state.records = []  # Material/Expense records
+
+if "labor_records" not in st.session_state:
+    st.session_state.labor_records = []  # Labor records
+
+if "payroll_expenses" not in st.session_state:
+    st.session_state.payroll_expenses = []  # Payroll expense records
 
 if "budget" not in st.session_state:
     st.session_state.budget = 0.0
 
+if "remaining_money" not in st.session_state:
+    st.session_state.remaining_money = 0.0
+
 if "view" not in st.session_state:
     st.session_state.view = "home"
 
-# ═════════════════ CORE LOGIC ═════════════════
+# ═════════════════ CORE LOGIC (MATERIAL/EXPENSE) ═════════════════
 def set_view(v):
     st.session_state.view = v
     st.rerun()
@@ -44,12 +58,12 @@ def get_total():
 def get_balance():
     return float(st.session_state.budget) + total_excess() - get_total()
 
-def get_all_records():
-    return st.session_state.records
-
 def clear_all():
     st.session_state.records = []
+    st.session_state.labor_records = []
+    st.session_state.payroll_expenses = []
     st.session_state.budget = 0.0
+    st.session_state.remaining_money = 0.0
 
 def add_tx(name, price, qty, delivery, ttype, sender):
     if float(price) <= 0 or int(qty) <= 0:
@@ -70,7 +84,7 @@ def add_tx(name, price, qty, delivery, ttype, sender):
     })
     return True
 
-# ═════════════════ REPORT MANAGER ═════════════════
+# ═════════════════ REPORT MANAGER (MATERIAL) ═════════════════
 def build_html_report(records, budget):
     material_total = total_materials()
     expense_total = total_expenses()
@@ -176,11 +190,11 @@ def build_html_report(records, budget):
                         <div class="balance-info">
                             <div class="balance-row material-row">
                                 <span>Material/Expense Total:</span>
-                                <span>PHP {total_materials() + total_expenses():,.2f}</span>
+                                <span>PHP {material_total + expense_total:,.2f}</span>
                             </div>
                             <div class="balance-row" style="font-size: 13px;">
                                 <span>Excess Money Total:</span>
-                                <span>PHP {total_excess():,.2f}</span>
+                                <span>PHP {excess_total:,.2f}</span>
                             </div>
                             <div class="balance-row" style="font-size: 13px;">
                                 <span>Total Budget:</span>
@@ -222,6 +236,123 @@ def build_html_report(records, budget):
     </html>
     """
     return html
+
+# ═════════════════ REPORT MANAGER (PAYROLL) ═════════════════
+def generate_payroll_html(labor_records, expense_records, remaining_money=0.0):
+    date_str = datetime.now().strftime("%B %d, %Y | %I:%M %p")
+    total_labor = sum(r['net'] for r in labor_records)
+    total_expenses = sum(e['price'] for e in expense_records)
+    
+    sub_total = total_labor + total_expenses
+    grand_total = sub_total - remaining_money
+
+    html = f"""
+    <html>
+    <body style="font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; padding: 40px;">
+    <div style="max-width: 900px; margin: auto; background: white; border-top: 10px solid #1b5e20; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <tr>
+                <td>
+                    <h1 style="color: #1b5e20; margin: 0; text-transform: uppercase;">Ailyn Construction</h1>
+                    <p style="color: #555; margin: 5px 0 0 0;">Official Labor & Payroll Inventory</p>
+                    <p style="color: #777; font-size: 14px; margin: 0;">Management System v3.6 Enterprise</p>
+                </td>
+                <td style="text-align: right;">
+                    <h3 style="color: #1b5e20; margin: 0;">INVENTORY RECEIPT</h3>
+                    <p style="color: #555; font-size: 14px; margin: 5px 0 0 0;">Date: {date_str}</p>
+                    <p style="color: #777; font-size: 12px; margin: 5px 0 0 0;">Account: {RECEIVER_EMAIL}</p>
+                </td>
+            </tr>
+        </table>
+
+        <div style="border-bottom: 2px solid #eee; margin-bottom: 30px;"></div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+                <tr style="background-color: #1b5e20; color: white; text-transform: uppercase; font-size: 14px;">
+                    <th style="padding: 12px; text-align: left;">Worker Name</th>
+                    <th style="padding: 12px; text-align: center;">Days</th>
+                    <th style="padding: 12px; text-align: right;">Rate</th>
+                    <th style="padding: 12px; text-align: right;">C.A.</th>
+                    <th style="padding: 12px; text-align: right;">Net Pay</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+
+    for r in labor_records:
+        html += f"""
+                <tr>
+                    <td style="padding: 12px; border-bottom: 1px solid #ddd; font-weight: bold;">{r['name']}</td>
+                    <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: center;">{r['days']}</td>
+                    <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right;">{r['rate']:,.2f}</td>
+                    <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right; color: #d32f2f;">({r['ca']:,.2f})</td>
+                    <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold; color: #1b5e20;">{r['net']:,.2f}</td>
+                </tr>
+        """
+
+    if expense_records:
+        html += """
+                <tr>
+                    <td colspan="5" style="padding: 12px 0;"></td>
+                </tr>
+                <tr style="background-color: #388e3c; color: white; text-transform: uppercase; font-size: 14px;">
+                    <th colspan="4" style="padding: 10px; text-align: left;">Expense Description</th>
+                    <th style="padding: 10px; text-align: right;">Amount</th>
+                </tr>
+        """
+        for e in expense_records:
+            html += f"""
+                <tr>
+                    <td colspan="4" style="padding: 10px; border-bottom: 1px solid #ddd;">{e['item']}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold;">{e['price']:,.2f}</td>
+                </tr>
+            """
+
+    html += f"""
+            </tbody>
+        </table>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 30px;">
+            <tr style="border-top: 2px solid #bbb;">
+                <td style="padding: 12px; font-weight: bold; text-align: right; font-size: 15px;">Subtotal Expenses:</td>
+                <td style="padding: 12px; width: 180px; text-align: right; font-weight: bold; font-size: 15px; color: #333;">PHP {sub_total:,.2f}</td>
+            </tr>
+    """
+
+    if remaining_money > 0:
+        html += f"""
+            <tr style="border-bottom: 2px solid #bbb;">
+                <td style="padding: 12px; font-weight: bold; text-align: right; color: #d32f2f; font-size: 15px;">Remaining/Leftover Money:</td>
+                <td style="padding: 12px; width: 180px; text-align: right; font-weight: bold; color: #d32f2f; font-size: 15px;">-PHP {remaining_money:,.2f}</td>
+            </tr>
+        """
+
+    html += f"""
+        </table>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <tr>
+                <td></td>
+                <td style="width: 350px; background: #1b5e20; color: white; padding: 20px; border-radius: 8px; text-align: right;">
+                    <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Final Output Amount</span><br>
+                    <span style="font-size: 32px; font-weight: bold; margin-top: 5px; display: inline-block;">PHP {grand_total:,.2f}</span>
+                </td>
+            </tr>
+        </table>
+
+        <div style="text-align: center; margin-top: 60px; border-top: 1px solid #eee; padding-top: 20px;">
+            <p style="color: #999; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">
+                THIS DOCUMENT WAS ELECTRONICALLY GENERATED AND IS VALID WITHOUT SIGNATURE.
+            </p>
+        </div>
+
+    </div>
+    </body>
+    </html>
+    """
+    return html, grand_total
 
 # ═════════════════ CSS & 3D GREEN INTERFACE ═════════════════
 st.markdown("""
@@ -365,8 +496,8 @@ h1, h2, h3 {
 
 st.markdown("""
 <div class="intro">
-    <h1>🏗️ AILYN HOUSE PROJECT</h1>
-    <p>Mobile Operating Engine v30000 — Ailyn Construction Management</p>
+    <h1>🏗️ AILYN HOUSE PROJECT & PAYROLL</h1>
+    <p>Combined System | Mobile Operating Engine v30000</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -374,7 +505,7 @@ st.markdown("""
 with st.sidebar:
     st.markdown("## 📱 AILY MOBILE CONTROL")
     
-    budget_input = st.number_input("Set Budget", min_value=0.0, key="budget_input_sidebar", value=0.0)
+    budget_input = st.number_input("Set Project Budget", min_value=0.0, key="budget_input_sidebar", value=st.session_state.budget)
     if st.button("APPLY BUDGET", use_container_width=True):
         st.session_state.budget = float(budget_input)
         st.success("Budget applied!")
@@ -383,18 +514,35 @@ with st.sidebar:
     st.caption(f"{datetime.now().strftime('%I:%M %p | %b %d')}")
     st.divider()
 
-    if st.button("🏠 HOME", use_container_width=True):
+    st.subheader("🏠 Navigation")
+    if st.button("🏠 Project Summary / Home", use_container_width=True):
         set_view("home")
-    if st.button("➕ MATERIAL", use_container_width=True):
+        
+    st.markdown("---")
+    st.subheader("🧱 Construction Ledger")
+    if st.button("➕ Add Material", use_container_width=True):
         set_view("material")
-    if st.button("📝 EXPENSE", use_container_width=True):
+    if st.button("📝 Add Construction Expense", use_container_width=True):
         set_view("expense")
-    if st.button("💰 EXCESS", use_container_width=True):
+    if st.button("💰 Add Excess Money", use_container_width=True):
         set_view("excess")
-    if st.button("📋 LEDGER", use_container_width=True):
+    if st.button("📋 View Project Ledger", use_container_width=True):
         set_view("ledger")
-    if st.button("📤 EXPORT", use_container_width=True):
+    if st.button("📤 Export Construction Report", use_container_width=True):
         set_view("export")
+        
+    st.markdown("---")
+    st.subheader("👷 Payroll System")
+    if st.button("➕ Add Labor", use_container_width=True):
+        set_view("add_labor")
+    if st.button("📝 Add Payroll Expense", use_container_width=True):
+        set_view("add_payroll_expense")
+    if st.button("➖ Set Remaining/Leftover", use_container_width=True):
+        set_view("payroll_remaining")
+    if st.button("📋 View Labor Records", use_container_width=True):
+        set_view("payroll_ledger")
+    if st.button("📤 Export Payroll Report", use_container_width=True):
+        set_view("payroll_export")
     
     st.divider()
     
@@ -452,8 +600,7 @@ elif view == "material":
 
     st.divider()
     if st.button("🏁 FINISH LOOP", use_container_width=True):
-        st.session_state.view = "home"
-        st.rerun()
+        set_view("home")
 
 # 📝 EXPENSE
 elif view == "expense":
@@ -476,8 +623,7 @@ elif view == "expense":
 
     st.divider()
     if st.button("🏁 FINISH LOOP", use_container_width=True):
-        st.session_state.view = "home"
-        st.rerun()
+        set_view("home")
 
 # 💰 EXCESS
 elif view == "excess":
@@ -510,12 +656,11 @@ elif view == "excess":
 
     st.divider()
     if st.button("🏁 FINISH LOOP", use_container_width=True):
-        st.session_state.view = "home"
-        st.rerun()
+        set_view("home")
 
 # 📋 LEDGER
 elif view == "ledger":
-    st.subheader("📋 LEDGER (MOBILE VIEW)")
+    st.subheader("📋 CONSTRUCTION LEDGER (MOBILE VIEW)")
 
     if not st.session_state.records:
         st.info("No transaction records found in ledger.")
@@ -537,12 +682,12 @@ elif view == "ledger":
 
 # 📤 EXPORT
 elif view == "export":
-    st.subheader("📤 EXPORT (MOBILE SAFE)")
+    st.subheader("📤 EXPORT CONSTRUCTION REPORT")
 
     html = build_html_report(st.session_state.records, st.session_state.budget)
 
     st.download_button(
-        label="DOWNLOAD REPORT",
+        label="DOWNLOAD CONSTRUCTION REPORT",
         data=html,
         file_name="aily_mobile_report.html",
         mime="text/html",
@@ -554,5 +699,112 @@ elif view == "export":
     st.write("Aily ✔")
     st.write(f"{RECEIVER_AILYN} ✔")
 
+# 👷 Payroll Views
+elif view == "add_labor":
+    st.subheader("👷 ADD LABOR")
+    with st.form(key="labor_form", clear_on_submit=True):
+        name = st.text_input("Worker Name")
+        days = st.number_input("Days Worked (e.g., 1 or 0.5)", min_value=0.5, value=1.0, step=0.5)
+        rate_option = st.radio("Rates", ["800", "650", "500"])
+        rate = 800 if rate_option == "800" else 650 if rate_option == "650" else 500
+        ca = st.number_input("Cash Advance", min_value=0.0, value=0.0)
+        
+        submitted = st.form_submit_button("SAVE LABOR")
+        
+    if submitted:
+        net = (days * rate) - ca
+        st.session_state.labor_records.append({
+            "name": name.upper(),
+            "days": days,
+            "rate": rate,
+            "ca": ca,
+            "net": net
+        })
+        st.success(f"Record for {name.upper()} added.")
+        st.rerun()
+
+elif view == "add_payroll_expense":
+    st.subheader("📝 ADD PAYROLL EXPENSE")
+    with st.form(key="payroll_expense_form", clear_on_submit=True):
+        desc = st.text_input("Expense Description")
+        amt = st.number_input("Amount", min_value=0.01, value=0.01)
+        
+        submitted = st.form_submit_button("SAVE EXPENSE")
+        
+    if submitted:
+        st.session_state.payroll_expenses.append({
+            "item": desc.upper(),
+            "price": amt
+        })
+        st.success(f"Expense {desc.upper()} added.")
+        st.rerun()
+
+elif view == "payroll_remaining":
+    st.subheader("➖ SET REMAINING MONEY")
+    res = st.number_input("Leftover/Remaining money to subtract from total", min_value=0.0, value=st.session_state.remaining_money)
+    if st.button("Apply"):
+        st.session_state.remaining_money = res
+        st.success("Remaining money applied.")
+        st.rerun()
+
+elif view == "payroll_ledger":
+    st.subheader("📋 LABOR & PAYROLL LEDGER")
+    st.markdown("### Labor Records")
+    if not st.session_state.labor_records:
+        st.info("No labor records.")
+    for i, r in enumerate(st.session_state.labor_records):
+        st.markdown(f"""
+        ---
+        **{r['name']}** - Days: {r['days']} | Rate: {r['rate']}  
+        - C.A.: PHP {r['ca']:,.2f}  
+        - **Net Pay: PHP {r['net']:,.2f}**
+        """)
+        if st.button("Delete Labor", key=f"del_lab_{i}"):
+            st.session_state.labor_records.pop(i)
+            st.rerun()
+            
+    st.markdown("---")
+    st.markdown("### Payroll Expenses")
+    if not st.session_state.payroll_expenses:
+        st.info("No payroll expenses.")
+    for i, e in enumerate(st.session_state.payroll_expenses):
+        st.markdown(f"""
+        - **{e['item']}**: PHP {e['price']:,.2f}
+        """)
+        if st.button("Delete Payroll Expense", key=f"del_pay_exp_{i}"):
+            st.session_state.payroll_expenses.pop(i)
+            st.rerun()
+
+elif view == "payroll_export":
+    st.subheader("📤 GENERATE PAYROLL REPORT")
+    
+    html, total = generate_payroll_html(
+        st.session_state.labor_records, 
+        st.session_state.payroll_expenses, 
+        st.session_state.remaining_money
+    )
+    
+    st.download_button(
+        label="DOWNLOAD PAYROLL REPORT",
+        data=html,
+        file_name="payroll_report.html",
+        mime="text/html",
+        use_container_width=True
+    )
+    
+    if st.button("📧 Email Report"):
+        try:
+            msg = EmailMessage()
+            msg['Subject'] = f"Construction Report: PHP {total:,.2f} - {datetime.now().strftime('%Y-%m-%d')}"
+            msg['From'] = SENDER_EMAIL
+            msg['To'] = RECEIVER_EMAIL
+            msg.add_alternative(html, subtype='html')
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                smtp.login(SENDER_EMAIL, SENDER_PASSWORD)
+                smtp.send_message(msg)
+            st.success("🚀 SUCCESS! Emailed report.")
+        except Exception as e:
+            st.error(f"❌ EMAIL FAILED: {e}")
+            
 else:
     st.info("Welcome to AILY OS. Use the sidebar to navigate.")
