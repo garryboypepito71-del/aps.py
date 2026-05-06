@@ -4,12 +4,12 @@ from datetime import datetime
 import streamlit as st
 
 # ═════════════════ CONFIGURATION ═════════════════
-APP_VERSION = "AILY OS v30000 — GREEN EMERALD CORE"
+APP_VERSION = "Ailyn Construction Management v30000 — GREEN EMERALD CORE"
 RECEIVER_AILYN = "ailyn_peps0678@yahoo.com"
 
 # ═════════════════ PAGE CONFIG ═════════════════
 st.set_page_config(
-    page_title="Ailyn Construction Management",
+    page_title="Ailyn Construction Management v30000",
     page_icon="🧊",
     layout="wide",
 )
@@ -366,7 +366,7 @@ h1, h2, h3 {
 st.markdown("""
 <div class="intro">
     <h1>🏗️ AILYN HOUSE PROJECT</h1>
-    <p>Mobile Operating Engine v30000</p>
+    <p>Mobile Operating Engine v30000 — Ailyn Construction Management</p>
 </div>
 """, unsafe_allow_html=True)
 
