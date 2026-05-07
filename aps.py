@@ -5,6 +5,7 @@ from datetime import datetime
 import streamlit as st
 import smtplib
 from email.message import EmailMessage
+from streamlit_pwa import pwa
 
 # ═════════════════ CONFIGURATION ═════════════════
 APP_VERSION = "AILY OS v30000 — GREEN EMERALD CORE"
@@ -12,6 +13,27 @@ RECEIVER_EMAIL = "garryboypepito2004@gmail.com"
 RECEIVER_AILYN = "ailyn_peps0678@yahoo.com"
 SENDER_EMAIL = "garryboypepito71@gmail.com"
 SENDER_PASSWORD = "fhyv cimp gync wjmj"
+
+# ═════════════════ PWA CONFIG ═════════════════
+pwa(
+    manifest={
+        "name": "Ailyn Construction Management",
+        "short_name": "Ailyn CM",
+        "description": "Construction management app with offline support",
+        "theme_color": "#1b5e20",
+        "background_color": "#0a1e14",
+        "display": "standalone",
+        "start_url": "/",
+        "scope": "/",
+        "icons": [
+            {
+                "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>",
+                "sizes": "192x192",
+                "type": "image/svg+xml"
+            }
+        ]
+    }
+)
 
 # ═════════════════ PAGE CONFIG ═════════════════
 st.set_page_config(
@@ -58,6 +80,35 @@ def save_data():
 
 # Load data on startup
 load_data()
+
+# ═════════════════ OFFLINE DETECTION ═════════════════
+st.markdown("""
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(registration => console.log('SW registered'))
+        .catch(error => console.log('SW registration failed'));
+}
+
+function updateOnlineStatus() {
+    const isOnline = navigator.onLine;
+    if (!isOnline) {
+        // Automatically switch to offline mode
+        const offlineRadio = document.querySelector('input[value="Offline"]');
+        if (offlineRadio && !offlineRadio.checked) {
+            offlineRadio.click();
+        }
+    }
+}
+
+// Listen for online/offline events
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
+// Check initial status
+updateOnlineStatus();
+</script>
+""", unsafe_allow_html=True)
 
 # ═════════════════ SESSION STATE ═════════════════
 if "records" not in st.session_state:
@@ -578,8 +629,14 @@ st.markdown("""
 with st.sidebar:
     st.markdown("## 📱 AILY MOBILE CONTROL")
     
-    # Mode selector
-    mode = st.radio("Mode", ["Online", "Offline"], index=1, key="mode_radio")
+    # Online/Offline status indicator
+    online_status = st.empty()
+    if st.session_state.mode == "Offline":
+        online_status.error("🔴 OFFLINE MODE - No internet connection")
+    else:
+        online_status.success("🟢 ONLINE MODE - Full features available")
+    
+    mode = st.radio("Mode", ["Online", "Offline"], index=1 if st.session_state.mode == "Offline" else 0, key="mode_radio")
     if mode != st.session_state.mode:
         st.session_state.mode = mode
         save_data()
