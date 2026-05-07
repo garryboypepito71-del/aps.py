@@ -406,6 +406,12 @@ def generate_payroll_html(labor_records, expense_records, remaining_money=0.0):
 # ═════════════════ CSS & 3D GREEN INTERFACE ═════════════════
 css = f"""
 <style>
+/* Safari/WebKit compatibility fixes */
+* {{
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}}
+
 @media (max-width: 768px) {{
     .block-container {{
         padding: 10px !important;
@@ -432,34 +438,43 @@ css = f"""
     background: {"rgba(10, 30, 20, 0.9)" if st.session_state.mode == "Offline" else 'url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c") no-repeat center center fixed'};
     background-size: cover;
     background-position: center;
+    -webkit-background-size: cover;
+    -webkit-background-attachment: fixed;
+    background-attachment: fixed;
 }}
 
 .block-container {{
     background: rgba(20, 50, 35, 0.65) !important;
     backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-radius: 20px;
     border: 1px solid rgba(135, 255, 180, 0.2);
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     padding: 24px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    -webkit-transition: -webkit-transform 0.2s ease, box-shadow 0.2s ease;
 }}
 
 .block-container:hover {{
     transform: scale(1.01);
+    -webkit-transform: scale(1.01);
     box-shadow: 0 16px 64px rgba(72, 239, 127, 0.15);
 }}
 
 section[data-testid="stSidebar"] {{
     background: rgba(10, 30, 20, 0.85) !important;
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-right: 1px solid rgba(135, 255, 180, 0.1);
 }}
 
 button {{
     background: linear-gradient(145deg, #0b4e2f, #167a44);
+    -webkit-background: linear-gradient(145deg, #0b4e2f, #167a44);
     color: #ffffff !important;
     border-radius: 14px !important;
     transition: all 0.15s ease-in-out;
+    -webkit-transition: all 0.15s ease-in-out;
     border: 1px solid rgba(135, 255, 180, 0.4);
     font-weight: bold;
     min-height: 45px;
@@ -467,13 +482,16 @@ button {{
 
 button:hover {{
     transform: scale(1.02);
+    -webkit-transform: scale(1.02);
     box-shadow: 0 6px 18px rgba(72, 239, 127, 0.3);
     border-color: #a3e635;
     background: linear-gradient(145deg, #167a44, #14a44d);
+    -webkit-background: linear-gradient(145deg, #167a44, #14a44d);
 }}
 
 button:active {{
     transform: scale(0.98);
+    -webkit-transform: scale(0.98);
 }}
 
 input, textarea, select {{
@@ -482,15 +500,18 @@ input, textarea, select {{
     color: #4ade80 !important;
     border-radius: 10px !important;
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     font-size: 16px !important;
     min-height: 40px;
     padding: 6px 12px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    -webkit-transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }}
 
 input:focus, textarea:focus, select:focus {{
     border-color: #22c55e !important;
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+    -webkit-box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
 }}
 
 h1, h2, h3 {{
@@ -507,10 +528,12 @@ h1, h2, h3 {{
     margin-bottom: 12px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     transition: transform 0.2s ease;
+    -webkit-transition: -webkit-transform 0.2s ease;
 }}
 
 [data-testid="stMetric"]:hover {{
     transform: translateY(-2px);
+    -webkit-transform: translateY(-2px);
     border-color: #4ade80;
 }}
 
