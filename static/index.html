@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ailyn Construction Management - Offline</title>
+    <meta name="theme-color" content="#1b5e20">
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a1e14;
+            color: #4ade80;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(20, 50, 35, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            color: #4ade80;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .offline {
+            background: #d32f2f;
+            color: white;
+        }
+        .online {
+            background: #2e7d32;
+            color: white;
+        }
+        .data-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+        button {
+            background: linear-gradient(145deg, #0b4e2f, #167a44);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        input, select {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #4ade80;
+            background: rgba(255, 255, 255, 0.1);
+            color: #4ade80;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Ailyn Construction Management</h1>
+        <div id="status" class="status offline">🔴 OFFLINE MODE</div>
+
+        <div class="data-section">
+            <h3>📊 Quick Stats</h3>
+            <p id="stats">Loading data...</p>
+        </div>
+
+        <div class="data-section">
+            <h3>➕ Add Material</h3>
+            <form id="materialForm">
+                <input type="text" id="materialName" placeholder="Material Name" required>
+                <input type="number" id="materialPrice" placeholder="Price" step="0.01" required>
+                <input type="number" id="materialQty" placeholder="Quantity" required>
+                <input type="number" id="materialDelivery" placeholder="Delivery Cost" step="0.01">
+                <input type="text" id="clientNo" placeholder="Client No">
+                <select id="sender">
+                    <option value="Garr">Garr</option>
+                    <option value="Aily">Aily</option>
+                </select>
+                <button type="submit">Save Material</button>
+            </form>
+        </div>
+
+        <div class="data-section">
+            <h3>📋 Recent Materials</h3>
+            <div id="materialsList">No materials yet</div>
+        </div>
+
+        <button onclick="clearData()">🗑️ Clear All Data</button>
+        <button onclick="exportData()">📤 Export Report</button>
+    </div>
+
+    <script>
+        // Load data from localStorage
+        let appData = JSON.parse(localStorage.getItem('ailynData') || '{"records": [], "budget": 0}');
+
+        function saveData() {
+            localStorage.setItem('ailynData', JSON.stringify(appData));
+        }
+
+        function updateStatus() {
+            const status = document.getElementById('status');
+            if (navigator.onLine) {
+                status.className = 'status online';
+                status.textContent = '🟢 ONLINE MODE - Full features available';
+            } else {
+                status.className = 'status offline';
+                status.textContent = '🔴 OFFLINE MODE - Limited features';
+            }
+        }
+
+        function updateStats() {
+            const materials = appData.records.filter(r => r.type === 'material');
+            const total = materials.reduce((sum, r) => sum + r.amount, 0);
+            document.getElementById('stats').innerHTML = `
+                Budget: PHP ${appData.budget.toLocaleString()}<br>
+                Materials Used: PHP ${total.toLocaleString()}<br>
+                Balance: PHP ${(appData.budget - total).toLocaleString()}
+            `;
+        }
+
+        function updateMaterialsList() {
+            const list = document.getElementById('materialsList');
+            const recent = appData.records.slice(-5);
+            list.innerHTML = recent.map(r => `
+                <div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    ${r.name} - PHP ${r.amount.toLocaleString()} (${r.sender})
+                </div>
+            `).join('') || 'No materials yet';
+        }
+
+        // Form submission
+        document.getElementById('materialForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const record = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(),
+                name: document.getElementById('materialName').value.toUpperCase(),
+                price: parseFloat(document.getElementById('materialPrice').value),
+                qty: parseInt(document.getElementById('materialQty').value),
+                delivery: parseFloat(document.getElementById('materialDelivery').value) || 0,
+                amount: (parseFloat(document.getElementById('materialPrice').value) * parseInt(document.getElementById('materialQty').value)) + (parseFloat(document.getElementById('materialDelivery').value) || 0),
+                type: 'material',
+                sender: document.getElementById('sender').value,
+                client_no: document.getElementById('clientNo').value
+            };
+            appData.records.push(record);
+            saveData();
+            updateStats();
+            updateMaterialsList();
+            e.target.reset();
+            alert('Material saved!');
+        });
+
+        function clearData() {
+            if (confirm('Clear all data?')) {
+                appData = {"records": [], "budget": 0};
+                saveData();
+                updateStats();
+                updateMaterialsList();
+            }
+        }
+
+        function exportData() {
+            const html = `
+                <html>
+                <body>
+                    <h1>Ailyn Construction Report</h1>
+                    <p>Generated: ${new Date().toLocaleString()}</p>
+                    <h2>Materials</h2>
+                    <ul>
+                        ${appData.records.map(r => `<li>${r.name} - PHP ${r.amount} (${r.sender})</li>`).join('')}
+                    </ul>
+                </body>
+                </html>
+            `;
+            const blob = new Blob([html], {type: 'text/html'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'report.html';
+            a.click();
+        }
+
+        // Initialize
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+        updateStatus();
+        updateStats();
+        updateMaterialsList();
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
+    </script>
+</body>
+</html>

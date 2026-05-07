@@ -1,8 +1,8 @@
-const CACHE_NAME = 'ailyn-cm-v1';
+const CACHE_NAME = 'ailyn-cm-v2';
 const urlsToCache = [
-  '/',
-  '/static/css/style.css',
-  '/static/js/main.js'
+  '/static/index.html',
+  '/static/manifest.json',
+  '/static/sw.js'
 ];
 
 self.addEventListener('install', event => {
