@@ -5,7 +5,6 @@ from datetime import datetime
 import streamlit as st
 import smtplib
 from email.message import EmailMessage
-from streamlit_pwa import pwa
 
 # ═════════════════ CONFIGURATION ═════════════════
 APP_VERSION = "AILY OS v30000 — GREEN EMERALD CORE"
@@ -14,28 +13,12 @@ RECEIVER_AILYN = "ailyn_peps0678@yahoo.com"
 SENDER_EMAIL = "garryboypepito71@gmail.com"
 SENDER_PASSWORD = "fhyv cimp gync wjmj"
 
-# ═════════════════ PWA CONFIG ═════════════════
-pwa(
-    manifest={
-        "name": "Ailyn Construction Management",
-        "short_name": "Ailyn CM",
-        "description": "Construction management app with offline support",
-        "theme_color": "#1b5e20",
-        "background_color": "#0a1e14",
-        "display": "standalone",
-        "start_url": "/",
-        "scope": "/",
-        "icons": [
-            {
-                "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏗️</text></svg>",
-                "sizes": "192x192",
-                "type": "image/svg+xml"
-            }
-        ]
-    }
-)
-
 # ═════════════════ PAGE CONFIG ═════════════════
+st.set_page_config(
+    page_title="Ailyn Construction Management",
+    page_icon="🧊",
+    layout="wide",
+)
 st.set_page_config(
     page_title="Ailyn Construction Management",
     page_icon="🧊",
