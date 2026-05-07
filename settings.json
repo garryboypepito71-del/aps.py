@@ -1,0 +1,12 @@
+{
+    "theme": "Light",
+    "default_quality": "4K (2160p)",
+    "auto_cleanup": false,
+    "show_logs": true,
+    "enable_thumbnail": true,
+    "enable_metadata": true,
+    "download_format": "mp4",
+    "enable_cookies": false,
+    "cookie_file": "",
+    "concurrent_fragment_downloads": 10
+}

@@ -1,5 +1,6 @@
 import os
 import time
+import json
 from datetime import datetime
 import streamlit as st
 import smtplib
@@ -18,6 +19,45 @@ st.set_page_config(
     page_icon="🧊",
     layout="wide",
 )
+
+# ═════════════════ PERSISTENCE ═════════════════
+DATA_FILE = "app_data.json"
+
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+                st.session_state.records = data.get("records", [])
+                st.session_state.labor_records = data.get("labor_records", [])
+                st.session_state.payroll_expenses = data.get("payroll_expenses", [])
+                st.session_state.budget = data.get("budget", 0.0)
+                st.session_state.remaining_money = data.get("remaining_money", 0.0)
+                st.session_state.view = data.get("view", "home")
+                st.session_state.mode = data.get("mode", "Online")
+        except:
+            pass
+
+def save_data():
+    data = {
+        "records": st.session_state.records,
+        "labor_records": st.session_state.labor_records,
+        "payroll_expenses": st.session_state.payroll_expenses,
+        "budget": st.session_state.budget,
+        "remaining_money": st.session_state.remaining_money,
+        "view": st.session_state.view,
+        "mode": st.session_state.mode
+    }
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+    
+    # Create backup
+    backup_file = f"{DATA_FILE}.backup"
+    with open(backup_file, "w") as f:
+        json.dump(data, f, indent=4)
+
+# Load data on startup
+load_data()
 
 # ═════════════════ SESSION STATE ═════════════════
 if "records" not in st.session_state:
@@ -38,9 +78,13 @@ if "remaining_money" not in st.session_state:
 if "view" not in st.session_state:
     st.session_state.view = "home"
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "Offline"
+
 # ═════════════════ CORE LOGIC (MATERIAL/EXPENSE) ═════════════════
 def set_view(v):
     st.session_state.view = v
+    save_data()
     st.rerun()
 
 def total_materials():
@@ -64,8 +108,9 @@ def clear_all():
     st.session_state.payroll_expenses = []
     st.session_state.budget = 0.0
     st.session_state.remaining_money = 0.0
+    save_data()
 
-def add_tx(name, price, qty, delivery, ttype, sender):
+def add_tx(name, price, qty, delivery, ttype, sender, client_no=""):
     if float(price) <= 0 or int(qty) <= 0:
         return False
 
@@ -80,8 +125,10 @@ def add_tx(name, price, qty, delivery, ttype, sender):
         "delivery": float(delivery),
         "amount": float(amount),
         "type": ttype,
-        "sender": sender
+        "sender": sender,
+        "client_no": client_no
     })
+    save_data()
     return True
 
 # ═════════════════ REPORT MANAGER (MATERIAL) ═════════════════
@@ -162,6 +209,7 @@ def build_html_report(records, budget):
                         <th class="desccol">Description</th>
                         <th class="pricecol">Unit Price</th>
                         <th class="deliverycol">Delivery</th>
+                        <th>Client No</th>
                         <th class="totalcol">Total</th>
                     </tr>
                 </thead>
@@ -176,6 +224,7 @@ def build_html_report(records, budget):
                         <td class="desccol">{r['name']}</td>
                         <td class="pricecol">{float(r.get('price', r['amount'])):,.2f}</td>
                         <td class="deliverycol">{float(r['delivery']):,.2f}</td>
+                        <td>{r.get('client_no', '')}</td>
                         <td class="totalcol">PHP {float(r['amount']):,.2f}</td>
                     </tr>
         """
@@ -355,37 +404,37 @@ def generate_payroll_html(labor_records, expense_records, remaining_money=0.0):
     return html, grand_total
 
 # ═════════════════ CSS & 3D GREEN INTERFACE ═════════════════
-st.markdown("""
+css = f"""
 <style>
-@media (max-width: 768px) {
-    .block-container {
+@media (max-width: 768px) {{
+    .block-container {{
         padding: 10px !important;
-    }
-    h1, h2, h3 {
+    }}
+    h1, h2, h3 {{
         font-size: 18px !important;
         text-align: center;
-    }
-    button {
+    }}
+    button {{
         width: 100% !important;
         margin-bottom: 8px !important;
         font-size: 16px !important;
         padding: 12px !important;
-    }
-    input {
+    }}
+    input {{
         font-size: 16px !important;
-    }
-    .stColumns {
+    }}
+    .stColumns {{
         flex-direction: column !important;
-    }
-}
+    }}
+}}
 
-.stApp {
-    background: url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c") no-repeat center center fixed;
+.stApp {{
+    background: {"rgba(10, 30, 20, 0.9)" if st.session_state.mode == "Offline" else 'url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c") no-repeat center center fixed'};
     background-size: cover;
     background-position: center;
-}
+}}
 
-.block-container {
+.block-container {{
     background: rgba(20, 50, 35, 0.65) !important;
     backdrop-filter: blur(16px);
     border-radius: 20px;
@@ -393,20 +442,20 @@ st.markdown("""
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
     padding: 24px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
+}}
 
-.block-container:hover {
+.block-container:hover {{
     transform: scale(1.01);
     box-shadow: 0 16px 64px rgba(72, 239, 127, 0.15);
-}
+}}
 
-section[data-testid="stSidebar"] {
+section[data-testid="stSidebar"] {{
     background: rgba(10, 30, 20, 0.85) !important;
     backdrop-filter: blur(20px);
     border-right: 1px solid rgba(135, 255, 180, 0.1);
-}
+}}
 
-button {
+button {{
     background: linear-gradient(145deg, #0b4e2f, #167a44);
     color: #ffffff !important;
     border-radius: 14px !important;
@@ -414,20 +463,20 @@ button {
     border: 1px solid rgba(135, 255, 180, 0.4);
     font-weight: bold;
     min-height: 45px;
-}
+}}
 
-button:hover {
+button:hover {{
     transform: scale(1.02);
     box-shadow: 0 6px 18px rgba(72, 239, 127, 0.3);
     border-color: #a3e635;
     background: linear-gradient(145deg, #167a44, #14a44d);
-}
+}}
 
-button:active {
+button:active {{
     transform: scale(0.98);
-}
+}}
 
-input, textarea, select {
+input, textarea, select {{
     background: rgba(255, 255, 255, 0.08) !important;
     border: 1px solid rgba(135, 255, 180, 0.3) !important;
     color: #4ade80 !important;
@@ -437,20 +486,20 @@ input, textarea, select {
     min-height: 40px;
     padding: 6px 12px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
+}}
 
-input:focus, textarea:focus, select:focus {
+input:focus, textarea:focus, select:focus {{
     border-color: #22c55e !important;
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
-}
+}}
 
-h1, h2, h3 {
+h1, h2, h3 {{
     color: #4ade80 !important;
     text-shadow: 0 0 6px rgba(34, 197, 94, 0.3);
     letter-spacing: 0.5px;
-}
+}}
 
-[data-testid="stMetric"] {
+[data-testid="stMetric"] {{
     background: rgba(15, 45, 30, 0.7);
     border-radius: 16px;
     padding: 12px;
@@ -458,41 +507,42 @@ h1, h2, h3 {
     margin-bottom: 12px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     transition: transform 0.2s ease;
-}
+}}
 
-[data-testid="stMetric"]:hover {
+[data-testid="stMetric"]:hover {{
     transform: translateY(-2px);
     border-color: #4ade80;
-}
+}}
 
-[data-testid="stMetric"] label {
+[data-testid="stMetric"] label {{
     color: #a3e635 !important;
     font-weight: 600;
-}
+}}
 
-[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     color: #ffffff !important;
-}
+}}
 
-.intro {
+.intro {{
     text-align: center;
     padding: 16px;
     color: #ffffff;
-}
+}}
 
-.intro h1 {
+.intro h1 {{
     font-size: 28px;
     font-weight: 800;
     color: #4ade80;
-}
+}}
 
-.intro p {
+.intro p {{
     font-size: 13px;
     color: #a3e635;
     opacity: 0.9;
-}
+}}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(css, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="intro">
@@ -505,9 +555,17 @@ st.markdown("""
 with st.sidebar:
     st.markdown("## 📱 AILY MOBILE CONTROL")
     
+    # Mode selector
+    mode = st.radio("Mode", ["Online", "Offline"], index=1, key="mode_radio")
+    if mode != st.session_state.mode:
+        st.session_state.mode = mode
+        save_data()
+        st.rerun()
+    
     budget_input = st.number_input("Set Project Budget", min_value=0.0, key="budget_input_sidebar", value=st.session_state.budget)
     if st.button("APPLY BUDGET", use_container_width=True):
         st.session_state.budget = float(budget_input)
+        save_data()
         st.success("Budget applied!")
         st.rerun()
         
@@ -573,7 +631,7 @@ if view == "home":
             st.markdown(f"""
             ---
             🧱 **{r['name']}** 💰 PHP {float(r['amount']):,.2f}  
-            👤 {r['sender']}  
+            👤 {r['sender']} | 📋 Client: {r.get('client_no', '')}  
             📅 {r['date']}
             """)
 
@@ -586,12 +644,13 @@ elif view == "material":
         price = st.number_input("Price", min_value=0.01, value=0.01)
         qty = st.number_input("Qty", min_value=1, value=1)
         delivery = st.number_input("Delivery", min_value=0.0, value=0.0)
+        client_no = st.text_input("Client No", value="")
         sender = st.selectbox("Sender", ["Garr", "Aily"])
         
         submitted = st.form_submit_button(label="SAVE MATERIAL")
 
     if submitted:
-        ok = add_tx(name, price, qty, delivery, "material", sender)
+        ok = add_tx(name, price, qty, delivery, "material", sender, client_no)
         if ok:
             st.success("Saved! Ready for next order.")
             st.rerun()
@@ -609,13 +668,14 @@ elif view == "expense":
     with st.form(key="expense_form", clear_on_submit=True):
         name = st.text_input("Expense Name")
         amount = st.number_input("Amount", min_value=0.01, value=0.01)
+        client_no = st.text_input("Client No", value="")
         sender = st.selectbox("Sender", ["Garr", "Aily"])
         
         submitted = st.form_submit_button(label="SAVE EXPENSE")
 
     if submitted:
         if amount > 0:
-            add_tx(name, amount, 1, 0, "expense", sender)
+            add_tx(name, amount, 1, 0, "expense", sender, client_no)
             st.success("Expense Added → Ledger Updated")
             st.rerun()
         else:
@@ -632,6 +692,7 @@ elif view == "excess":
     with st.form(key="excess_form", clear_on_submit=True):
         name = st.text_input("Reason")
         amount = st.number_input("Amount", min_value=0.01, value=0.01)
+        client_no = st.text_input("Client No", value="")
         sender = st.selectbox("Sender", ["Garr", "Aily"])
         
         submitted = st.form_submit_button(label="ADD EXCESS")
@@ -647,8 +708,10 @@ elif view == "excess":
                 "delivery": 0.0,
                 "amount": float(amount),
                 "type": "excess",
-                "sender": sender
+                "sender": sender,
+                "client_no": client_no
             })
+            save_data()
             st.success("Excess Added")
             st.rerun()
         else:
@@ -669,7 +732,7 @@ elif view == "ledger":
             st.markdown(f"""
             ---
             **{r['name']}** 💰 PHP {float(r['amount']):,.2f}  
-            👤 {r['sender']}  
+            👤 {r['sender']} | 📋 Client: {r.get('client_no', '')}  
             📦 {r['type']}  
             📅 {r['date']}
             """)
@@ -678,6 +741,7 @@ elif view == "ledger":
                 st.session_state.records = [
                     x for x in st.session_state.records if x["id"] != r["id"]
                 ]
+                save_data()
                 st.rerun()
 
 # 📤 EXPORT
@@ -720,6 +784,7 @@ elif view == "add_labor":
             "ca": ca,
             "net": net
         })
+        save_data()
         st.success(f"Record for {name.upper()} added.")
         st.rerun()
 
@@ -736,6 +801,7 @@ elif view == "add_payroll_expense":
             "item": desc.upper(),
             "price": amt
         })
+        save_data()
         st.success(f"Expense {desc.upper()} added.")
         st.rerun()
 
@@ -744,6 +810,7 @@ elif view == "payroll_remaining":
     res = st.number_input("Leftover/Remaining money to subtract from total", min_value=0.0, value=st.session_state.remaining_money)
     if st.button("Apply"):
         st.session_state.remaining_money = res
+        save_data()
         st.success("Remaining money applied.")
         st.rerun()
 
@@ -761,6 +828,7 @@ elif view == "payroll_ledger":
         """)
         if st.button("Delete Labor", key=f"del_lab_{i}"):
             st.session_state.labor_records.pop(i)
+            save_data()
             st.rerun()
             
     st.markdown("---")
@@ -773,6 +841,7 @@ elif view == "payroll_ledger":
         """)
         if st.button("Delete Payroll Expense", key=f"del_pay_exp_{i}"):
             st.session_state.payroll_expenses.pop(i)
+            save_data()
             st.rerun()
 
 elif view == "payroll_export":
@@ -792,19 +861,22 @@ elif view == "payroll_export":
         use_container_width=True
     )
     
-    if st.button("📧 Email Report"):
-        try:
-            msg = EmailMessage()
-            msg['Subject'] = f"Construction Report: PHP {total:,.2f} - {datetime.now().strftime('%Y-%m-%d')}"
-            msg['From'] = SENDER_EMAIL
-            msg['To'] = RECEIVER_EMAIL
-            msg.add_alternative(html, subtype='html')
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                smtp.login(SENDER_EMAIL, SENDER_PASSWORD)
-                smtp.send_message(msg)
-            st.success("🚀 SUCCESS! Emailed report.")
-        except Exception as e:
-            st.error(f"❌ EMAIL FAILED: {e}")
+    if st.session_state.mode == "Online":
+        if st.button("📧 Email Report"):
+            try:
+                msg = EmailMessage()
+                msg['Subject'] = f"Construction Report: PHP {total:,.2f} - {datetime.now().strftime('%Y-%m-%d')}"
+                msg['From'] = SENDER_EMAIL
+                msg['To'] = RECEIVER_EMAIL
+                msg.add_alternative(html, subtype='html')
+                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                    smtp.login(SENDER_EMAIL, SENDER_PASSWORD)
+                    smtp.send_message(msg)
+                st.success("🚀 SUCCESS! Emailed report.")
+            except Exception as e:
+                st.error(f"❌ EMAIL FAILED: {e}")
+    else:
+        st.info("📧 Email disabled in Offline mode.")
             
 else:
     st.info("Welcome to AILY OS. Use the sidebar to navigate.")
